@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hệ Thống Xe Điện Nội Bộ - Cảng Phước An</title>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --primary-blue: #004085;
+            --accent-orange: #ff8c00;
+            --staff-green: #28a745;
+            --guest-red: #dc3545;
+            --white: #ffffff;
+            --container-width: 530px;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000; display: flex; justify-content: center;
+        }
+
+        .app-container {
+            width: 100%; max-width: var(--container-width); height: 100vh;
+            position: relative; background-color: #fff;
+        }
+
+        /* TRANG CHỦ */
+        #step-home {
+            width: 100%; height: 100%;
+            background-image: url('https://raw.githubusercontent.com/tanamedi4-cloud/dichuyennoibo/refs/heads/main/BIENBAOE.png');
+            background-size: 100% 100%; position: absolute; top: 0; left: 0; z-index: 100;
+        }
+
+        .logo-section {
+            position: absolute; top: 0; left: 0; width: 100%; height: 171px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .logo-section img { width: 90%; height: auto; }
+
+        .interaction-section {
+            position: absolute; top: 240px; left: 0; width: 100%; height: auto;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .btn-custom {
+            border: 3px solid var(--accent-orange); background-color: var(--primary-blue);
+            color: var(--white); padding: 12px 0; border-radius: 12px;
+            font-weight: bold; width: 85%; margin: 8px 0; text-align: center;
+            cursor: pointer; text-transform: uppercase; font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.2s;
+            text-decoration: none; display: inline-block;
+        }
+        .btn-custom:active { transform: scale(0.96); }
+
+        .call-btn {
+            border: 3px solid var(--accent-orange); background-color: var(--primary-blue);
+            color: var(--white); padding: 10px 20px; border-radius: 8px;
+            font-weight: bold; display: inline-block; text-decoration: none;
+            margin-top: 10px; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            animation: pulse 1.5s infinite;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3; border-top: 5px solid var(--accent-orange);
+            border-radius: 50%; width: 35px; height: 35px;
+            animation: spin 1s linear infinite; margin: 0 auto 8px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .marquee-box { width: 100%; overflow: hidden; margin-top: 30px; }
+        .scrolling-text {
+            color: red; font-weight: bold; white-space: nowrap; display: inline-block; font-size: 42px;
+            animation: marquee 10s linear infinite, blink 1s step-end infinite;
+        }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* MÀN HÌNH LỚP PHỦ */
+        .overlay-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 200; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+
+        #password-modal { background: rgba(0,0,0,0.9); z-index: 300; }
+
+        input {
+            width: 80%; padding: 12px; margin: 10px 0;
+            border: 2px solid #ddd; border-radius: 8px; font-size: 16px;
+        }
+
+        /* BẢN ĐỒ */
+        .map-view {
+            width: 100%; height: 100%;
+            background-image: url('https://raw.githubusercontent.com/tanamedi4-cloud/dichuyennoibo/d283a84ebadc0d910c3c09f209a5cb3c61f97e35/GOC.png');
+            background-size: 100% 100%; position: relative; z-index: 50;
+        }
+
+        .dot {
+            width: 24px; height: 24px; border-radius: 50%; position: absolute; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 10px; font-weight: bold;
+            transform: translate(-50%, -50%); border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: all 0.3s ease;
+        }
+        
+        .dot-blue { background: blue; }
+        .dot-red { background: var(--guest-red); animation: pulse 1s infinite; }
+        .dot-green { background: var(--staff-green); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 
+            0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(0,0,0,0.4); } 
+            50% { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 10px 5px rgba(0,0,0,0.2); } 
+            100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(0,0,0,0); } 
+        }
+
+        .hidden { display: none !important; }
+
+        /* KHUNG THÔNG BÁO TỌA ĐỘ TÀI XẾ */
+        #status-box {
+            position: absolute; left: 24%; top: 0.6%; width: 75.5%; height: 16.7%; 
+            background: rgba(255,255,255,0.95); padding: 8px; border-radius: 8px; 
+            text-align: center; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            box-sizing: border-box; font-size: 14px; overflow: hidden;
+        }
+
+        .booking-list-container {
+            overflow-y: auto; height: 100%; width: 100%; text-align: left;
+            margin-top: 5px; border-top: 1px solid #ccc; padding-right: 5px;
+        }
+        
+        .booking-item {
+            border-bottom: 1px dashed #ddd; padding: 6px 0; width: 100%; font-size: 13px;
+        }
+        .booking-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <div id="step-home">
+        <div class="logo-section">
+            <img src="https://raw.githubusercontent.com/tanamedi4-cloud/MAPPORTT/refs/heads/main/logopa.gif" alt="Logo">
+        </div>
+        <div class="interaction-section">
+            <div class="btn-custom" onclick="selectRole('Khách hàng/Đối tác')">Khách hàng, đối tác</div>
+            <div class="btn-custom" onclick="selectRole('Nhân viên')">Nhân viên nội bộ</div>
+            <div class="btn-custom" onclick="openDriverLogin()" style="background-color: #555;">Tài xế xe điện</div>
+            
+            <div class="marquee-box">
+                <div class="scrolling-text">Vui lòng bật định vị để đặt xe ...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="step-info" class="overlay-screen hidden">
+        <img src="https://raw.githubusercontent.com/tanamedi4-cloud/MAPPORTT/refs/heads/main/logopa.gif" alt="Logo PA" style="width: 65%; max-width: 180px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: var(--primary-blue); margin-top: 0;">THÔNG TIN ĐẶT XE</h2>
+        <input type="text" id="user-name" placeholder="Họ và tên của anh/chị">
+        <input type="tel" id="user-phone" placeholder="Số điện thoại liên lạc">
+        <div class="btn-custom" onclick="showMap()">Vào Sơ Đồ Chọn Điểm Đón</div>
+        <p onclick="location.reload()" style="color:red; cursor:pointer; font-weight:bold; margin-top:20px;">Quay lại</p>
+    </div>
+
+    <div id="password-modal" class="overlay-screen hidden">
+        <div style="background: white; padding: 25px; border-radius: 15px; width: 75%; text-align: center;">
+            <h3 style="margin-top:0">XÁC MINH TÀI XẾ</h3>
+            <input type="password" id="pass-input" placeholder="Nhập mật khẩu nội bộ">
+            <div class="btn-custom" style="width:100%" onclick="checkDriverPass()">Xác nhận</div>
+            <p onclick="location.reload()" style="color:gray; cursor:pointer; font-size:12px;">Hủy bỏ</p>
+        </div>
+    </div>
+
+    <div id="step-driver-info" class="overlay-screen hidden">
+        <h2 style="color: var(--primary-blue)">THÔNG TIN TÀI XẾ</h2>
+        <input type="text" id="driver-name" placeholder="Họ và tên tài xế">
+        <input type="tel" id="driver-phone" placeholder="Số điện thoại tài xế">
+        <input type="number" id="driver-car-id" placeholder="Số xe điện (VD: 05)">
+        <div class="btn-custom" onclick="accessDriverMap()">Bắt đầu làm việc</div>
+        <p onclick="location.reload()" style="color:red; cursor:pointer; font-weight:bold;">Thoát</p>
+    </div>
+
+    <div id="step-map" class="map-view hidden">
+        <div id="status-box" class="hidden">
+            <div id="msg-text" style="width: 100%;">Đang xử lý...</div>
+            <div id="passenger-info" class="hidden" style="width:100%; height:100%; display:flex; flex-direction:column;">
+            </div>
+        </div>
+
+        <div id="driver-status-bar" class="hidden" style="position:absolute; bottom:0; background:rgba(0,0,0,0.8); color:white; width:100%; padding:10px; text-align:center; z-index: 600;">
+            Chế độ Tài xế: <span id="active-driver-info"></span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // URL Google Sheets (Chỉ dùng để sao lưu nếu cần)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJbg7o0FsAIpVKXApyv7ZkMTZC1_dhAAw2RLmA6fFTxRtTmyFiM3XKp2Wu4tTm3yZT_A/exec";
+    const CORRECT_PASS = "1a@";
+
+    // --- CẤU HÌNH FIREBASE ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyC9q9UxlipawTBYVPNR-8uZXJDqyLZuMQM",
+        authDomain: "dichuyennoibo.firebaseapp.com",
+        projectId: "dichuyennoibo",
+        storageBucket: "dichuyennoibo.firebasestorage.app",
+        messagingSenderId: "185735345883",
+        appId: "1:185735345883:web:1c120cbcbe467206fcbefe",
+        databaseURL: "https://dichuyennoibo-default-rtdb.asia-southeast1.firebasedatabase.app" 
+    };
+
+    // Khởi tạo Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let userData = { role: '', name: '', phone: '' };
+    let isDriverMode = false;
+    let myBookingId = null; 
+    window.currentBookings = [];
+
+    // --- HỆ THỐNG ÂM THANH BÁO ĐỘNG TÀI XẾ ---
+    let audioCtx = null;
+    let alertInterval = null;
+
+    function initAudioContext() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playSingleRapidBeep() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime); 
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function startDriverAlert() {
+        if (alertInterval) return; 
+        alertInterval = setInterval(() => {
+            playSingleRapidBeep();
+            if (navigator.vibrate) navigator.vibrate(150); 
+        }, 300);
+    }
+
+    function stopDriverAlert() {
+        if (alertInterval) {
+            clearInterval(alertInterval);
+            alertInterval = null;
+        }
+        if (navigator.vibrate) navigator.vibrate(0);
+    }
+
+    // --- LẮNG NGHE DỮ LIỆU TỪ FIREBASE LIÊN TỤC ---
+    db.ref('bookings').on('value', (snapshot) => {
+        let activeBookings = [];
+        snapshot.forEach((childSnapshot) => {
+            activeBookings.push(childSnapshot.val());
+        });
+        
+        window.currentBookings = activeBookings;
+
+        if (isDriverMode) {
+            initMap(true);
+            let hasPending = activeBookings.some(b => b.status === 'PENDING');
+            if (hasPending) startDriverAlert();
+            else stopDriverAlert();
+        } 
+        else if (myBookingId) {
+            let myBooking = activeBookings.find(b => b.id === myBookingId);
+            
+            if (!myBooking) { 
+                document.getElementById('msg-text').innerHTML = "<span style='color:green; font-weight:bold; font-size:16px;'>Chuyến đi hoàn tất. Cảm ơn bạn!</span>";
+                myBookingId = null;
+                setTimeout(() => location.reload(), 3000);
+            } else if (myBooking.status === 'ACCEPTED') {
+                renderPassengerAcceptedUI(myBooking);
+            }
+        }
+    });
+
+    // Vòng lặp giao diện chờ cho Khách Hàng
+    setInterval(() => {
+        if(!isDriverMode && myBookingId) {
+            let myBooking = window.currentBookings.find(b => b.id === myBookingId);
+            if(myBooking && myBooking.status === 'ACCEPTED') {
+                renderPassengerAcceptedUI(myBooking);
+            }
+        }
+    }, 5000);
+
+    function renderPassengerAcceptedUI(booking) {
+        const waitTimeMs = Date.now() - booking.acceptedAt;
+        let htmlContent = `
+            <span style='color:green; font-weight:bold; font-size:15px;'>Tài xế đang đến (Điểm ${booking.point})</span><br>
+            Tài xế: <b>${booking.driverName}</b> - Xe: <b>${booking.driverCar}</b>
+        `;
+        if(waitTimeMs > 600000) { 
+            htmlContent += `<br><a href="tel:${booking.driverPhone}" class="call-btn" style="padding:6px 12px; font-size:14px;">${booking.driverPhone}</a>`;
+        }
+        htmlContent += `<br><div class="btn-custom" style="width: 130px; background-color: #dc3545; border-color: #fff; padding: 6px 0; margin: 8px auto 0; font-size: 12px;" onclick="location.reload()">Thoát / Đặt Lại</div>`;
+        document.getElementById('msg-text').innerHTML = htmlContent;
+    }
+
+    const points = [
+        {id: 1, x: 632, y: 696}, {id: 2, x: 548, y: 1002}, {id: 3, x: 659, y: 1029},
+        {id: 4, x: 698, y: 963}, {id: 5, x: 809, y: 993}, {id: 6, x: 1208, y: 906},
+        {id: 7, x: 341, y: 1089}, {id: 8, x: 299, y: 1464}, {id: 9, x: 641, y: 1347},
+        {id: 10, x: 635, y: 1401}, {id: 11, x: 1211, y: 1713}, {id: 12, x: 707, y: 1740},
+        {id: 13, x: 653, y: 1743}, {id: 14, x: 536, y: 1746}, {id: 15, x: 479, y: 1746},
+        {id: 16, x: 359, y: 1749}, {id: 17, x: 257, y: 1977}, {id: 18, x: 386, y: 2112},
+        {id: 19, x: 635, y: 2121}, {id: 20, x: 635, y: 2055}, {id: 21, x: 1205, y: 2427},
+        {id: 22, x: 689, y: 2370}, {id: 23, x: 656, y: 2424}, {id: 24, x: 533, y: 2406},
+        {id: 25, x: 479, y: 2406}, {id: 26, x: 353, y: 2379}, {id: 27, x: 326, y: 2436},
+        {id: 28, x: 212, y: 2337}, {id: 29, x: 209, y: 2634}, {id: 30, x: 410, y: 2736},
+        {id: 31, x: 632, y: 2733}
+    ];
+
+    function selectRole(role) {
+        userData.role = role;
+        document.getElementById('step-home').classList.add('hidden');
+        document.getElementById('step-info').classList.remove('hidden');
+    }
+
+    function showMap() {
+        userData.name = document.getElementById('user-name').value;
+        userData.phone = document.getElementById('user-phone').value;
+
+        if(!userData.name || !userData.phone) return alert("Vui lòng nhập đủ thông tin!");
+        
+        document.getElementById('step-info').classList.add('hidden');
+        document.getElementById('step-map').classList.remove('hidden');
+        initMap(false);
+    }
+
+    function submitBooking(pointId) {
+        if(myBookingId) return alert("Anh/chị đã đặt xe tại một điểm rồi. Vui lòng ấn Thoát / Đặt Lại nếu muốn đổi điểm!");
+        if(!confirm("Anh/chị xác nhận đặt xe tại Điểm " + pointId + "?")) return;
+
+        const statusBox = document.getElementById('status-box');
+        const msgText = document.getElementById('msg-text');
+        statusBox.classList.remove('hidden');
+        msgText.classList.remove('hidden');
+        document.getElementById('passenger-info').classList.add('hidden');
+        
+        msgText.innerHTML = `
+            <div class="loader"></div>
+            <div style='font-size: 16px; color:var(--accent-orange); font-weight:bold; margin-bottom: 8px;'>Đang kết nối với tài xế...</div>
+            <div class="btn-custom" style="width: 130px; background-color: #dc3545; border-color: #fff; padding: 6px 0; margin: 0 auto; font-size: 12px;" onclick="location.reload()">Thoát / Đặt Lại</div>
+        `;
+
+        const newBooking = {
+            id: Date.now().toString(),
+            point: pointId,
+            name: userData.name,
+            phone: userData.phone,
+            role: userData.role,
+            status: 'PENDING',
+            acceptedAt: null,
+            driverName: '',
+            driverCar: '',
+            driverPhone: ''
+        };
+
+        myBookingId = newBooking.id;
+
+        // Đẩy lên Firebase
+        db.ref('bookings/' + newBooking.id).set(newBooking).catch(err => {
+            alert("Lỗi kết nối. Vui lòng kiểm tra lại mạng!");
+            console.error(err);
+        });
+
+        // Tùy chọn: Vẫn lưu vào Sheet để làm báo cáo
+        const finalUrl = `${SCRIPT_URL}?name=${encodeURIComponent(userData.name)}&phone=${encodeURIComponent(userData.phone)}&role=${encodeURIComponent(userData.role)}&point=${pointId}`;
+        fetch(finalUrl, { mode: 'no-cors' }).catch(() => {});
+    }
+
+    function openDriverLogin() {
+        document.getElementById('step-home').classList.add('hidden');
+        document.getElementById('password-modal').classList.remove('hidden');
+    }
+
+    function checkDriverPass() {
+        if (document.getElementById('pass-input').value === CORRECT_PASS) {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('step-driver-info').classList.remove('hidden');
+        } else {
+            alert("Sai mật khẩu!");
+        }
+    }
+
+    function accessDriverMap() {
+        const name = document.getElementById('driver-name').value;
+        const phone = document.getElementById('driver-phone').value;
+        const car = document.getElementById('driver-car-id').value;
+
+        if(!name || !phone || !car) return alert("Vui lòng nhập đủ thông tin!");
+        
+        initAudioContext();
+        window.driverSession = { name: name, phone: phone, car: car };
+
+        document.getElementById('step-driver-info').classList.add('hidden');
+        document.getElementById('step-map').classList.remove('hidden');
+        document.getElementById('driver-status-bar').classList.remove('hidden');
+        document.getElementById('active-driver-info').innerText = `${name} - Xe: ${car}`;
+        
+        isDriverMode = true;
+        initMap(true);
+    }
+
+    function initMap(isDriver) {
+        const map = document.getElementById('step-map');
+        map.querySelectorAll('.dot').forEach(d => d.remove());
+
+        let activeBookings = window.currentBookings; 
+
+        if (isDriver) {
+            const statusBox = document.getElementById('status-box');
+            const pInfo = document.getElementById('passenger-info');
+            document.getElementById('msg-text').classList.add('hidden');
+            
+            if(activeBookings.length > 0) {
+                statusBox.classList.remove('hidden');
+                pInfo.classList.remove('hidden');
+                pInfo.style.display = 'flex';
+                
+                let htmlList = `<div style="color: red; font-weight: bold; font-size:14px; margin-bottom: 2px;">CÓ ${activeBookings.length} YÊU CẦU!</div>`;
+                htmlList += `<div class="booking-list-container">`;
+                
+                activeBookings.forEach((b, index) => {
+                    let statusTxt = b.status === 'PENDING' ? '<span style="color:var(--accent-orange)">Chờ đón</span>' : '<span style="color:blue">Đang đón</span>';
+                    htmlList += `
+                        <div class="booking-item">
+                            <b>${index + 1}. ${b.name}</b> (${b.role})<br>
+                            SĐT: ${b.phone} | Tại: <b style="color:red;">Điểm ${b.point}</b> [${statusTxt}]
+                        </div>
+                    `;
+                });
+                
+                htmlList += `</div>`;
+                pInfo.innerHTML = htmlList;
+            } else {
+                statusBox.classList.add('hidden');
+                pInfo.innerHTML = '';
+            }
+        }
+
+        points.forEach(p => {
+            let bookingsAtPoint = activeBookings.filter(b => b.point == p.id);
+            if (isDriver && bookingsAtPoint.length === 0) return; 
+
+            const d = document.createElement('div');
+            
+            if (bookingsAtPoint.length > 0) {
+                let mainBooking = bookingsAtPoint[0];
+                d.className = mainBooking.role === 'Khách hàng/Đối tác' ? 'dot dot-red' : 'dot dot-green';
+                
+                if (isDriver && bookingsAtPoint.length > 1) {
+                    d.innerHTML = `${p.id}<span style="position:absolute; top:-8px; right:-8px; background:yellow; color:black; border-radius:50%; width:16px; height:16px; font-size:11px; font-weight:bold; border:1px solid black; display:flex; align-items:center; justify-content:center; box-shadow:0 0 3px rgba(0,0,0,0.5);">${bookingsAtPoint.length}</span>`;
+                } else {
+                    d.innerText = p.id;
+                }
+            } else {
+                d.className = 'dot dot-blue';
+                d.innerText = p.id;
+            }
+
+            d.style.left = (p.x / 1400 * 100) + '%';
+            d.style.top = (p.y / 2850 * 100) + '%';
+            
+            d.onclick = () => {
+                if(!isDriver) {
+                    submitBooking(p.id);
+                } else {
+                    let bIndex = activeBookings.findIndex(b => b.point == p.id);
+                    if(bIndex > -1) {
+                        let targetBooking = activeBookings[bIndex];
+                        if(targetBooking.status === 'PENDING') {
+                            if(confirm(`Nhận đón khách: ${targetBooking.name} tại điểm ${p.id}?`)) {
+                                db.ref('bookings/' + targetBooking.id).update({
+                                    status: 'ACCEPTED',
+                                    driverName: window.driverSession.name,
+                                    driverCar: window.driverSession.car,
+                                    driverPhone: window.driverSession.phone,
+                                    acceptedAt: Date.now()
+                                });
+                            }
+                        } else if(targetBooking.status === 'ACCEPTED') {
+                            if(confirm(`Xác nhận ĐÃ ĐÓN KHÁCH: ${targetBooking.name} thành công?`)) {
+                                db.ref('bookings/' + targetBooking.id).remove();
+                            }
+                        }
+                    }
+                }
+            };
+            map.appendChild(d);
+        });
+    }
+</script>
+
+</body>
+</html>
